@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+
+# Environment / secrets
+backend/.env
+*.env
+
+# Generated meeting transcripts (user data — keep out of repo)
+meetings/*.md
+
+# Temp / test artifacts
+tests/.tmp/
+/tmp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+.agents/
+.codex/

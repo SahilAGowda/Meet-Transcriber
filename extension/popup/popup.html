@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Google Meet Transcriber</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --border: #0f3460;
+      --accent: #e94560;
+      --green: #00c896;
+      --yellow: #f5a623;
+      --text: #eaeaea;
+      --muted: #8a8fa8;
+      --radius: 8px;
+      --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-width: 320px;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 13px;
+    }
+    main { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 10px; }
+    h1 { font-size: 14px; font-weight: 700; letter-spacing: 0.02em; color: #fff; }
+
+    /* Status row */
+    .status-row {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.active { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 1.5s infinite; }
+    .dot.error { background: var(--accent); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    #status-text { flex: 1; font-weight: 600; font-size: 13px; }
+    #duration-text { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+
+    /* Capture mode badge */
+    .mode-badge {
+      display: none;
+      align-items: center; gap: 5px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+    .mode-badge.tab-mic { display: flex; background: rgba(0,200,150,0.15); color: var(--green); border: 1px solid rgba(0,200,150,0.3); }
+    .mode-badge.tab-only { display: flex; background: rgba(245,166,35,0.15); color: var(--yellow); border: 1px solid rgba(245,166,35,0.3); }
+    .mode-badge .mode-icon { font-size: 13px; }
+
+    /* Transcript info */
+    #transcript-text { color: var(--muted); font-size: 11px; font-family: monospace; word-break: break-all; }
+
+    /* Hint box */
+    .hint-box {
+      padding: 8px 10px;
+      background: rgba(15,52,96,0.5);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 11px; color: var(--muted); line-height: 1.5;
+    }
+    .hint-box strong { color: var(--text); }
+
+    /* Error/warning box */
+    #error-box {
+      display: none;
+      padding: 8px 10px;
+      border-radius: var(--radius);
+      font-size: 11px; line-height: 1.5;
+    }
+    #error-box.warning { display: block; background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.4); color: var(--yellow); }
+    #error-box.error   { display: block; background: rgba(233,69,96,0.1);  border: 1px solid rgba(233,69,96,0.4);  color: var(--accent); }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      flex: 1; min-width: 100px;
+      padding: 9px 14px;
+      border: none; border-radius: var(--radius);
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    #start { background: var(--green); color: #0a1628; }
+    #stop  { background: var(--accent); color: #fff; }
+    #open  { background: var(--border); color: var(--text); }
+    #start:hover:not(:disabled) { opacity: 0.88; }
+    #stop:hover:not(:disabled)  { opacity: 0.88; }
+    #open:hover:not(:disabled)  { opacity: 0.88; }
+
+    .loopback-tip {
+      font-size: 10px; color: var(--muted); line-height: 1.4;
+      padding-top: 2px;
+      border-top: 1px solid var(--border);
+    }
+    .loopback-tip a { color: #6ea8fe; text-decoration: none; }
+    .loopback-tip a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>🎙 Google Meet Transcriber</h1>
+
+    <div class="status-row">
+      <div class="dot" id="dot"></div>
+      <span id="status-text">Checking…</span>
+      <span id="duration-text"></span>
+    </div>
+
+    <div class="mode-badge" id="mode-badge">
+      <span class="mode-icon" id="mode-icon">🎤</span>
+      <span id="mode-label">tab+mic</span>
+    </div>
+
+    <p id="transcript-text"></p>
+
+    <div id="error-box" role="alert"></div>
+
+    <div class="hint-box">
+      <strong>Steps:</strong> Open a Meet tab → click Start → allow mic for
+      <strong>this extension</strong> when prompted (different from meet.google.com mic).
+      Unmute yourself in Meet. If silent after 5s, also run the
+      <strong>loopback script</strong> below.
+    </div>
+
+    <div class="btn-row">
+      <button id="start">▶ Start</button>
+      <button id="stop"  hidden>■ Stop</button>
+      <button id="open"  hidden>📄 Open Transcript</button>
+    </div>
+
+    <p class="loopback-tip">
+      Solo session or mic blocked? Run
+      <code>bash backend/scripts/start_with_loopback.sh</code>
+      in terminal for guaranteed audio capture.
+    </p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Google Meet Transcriber (Local)",
+  "version": "0.2.5",
+  "description": "Captures Google Meet tab audio plus your microphone and sends it to a local-only transcriber.",
+  "permissions": ["activeTab", "tabCapture", "offscreen", "storage", "microphone"],
+  "host_permissions": ["http://127.0.0.1:8000/*"],
+  "action": {"default_popup": "popup/popup.html", "default_title": "Google Meet Transcriber"},
+  "background": {"service_worker": "background/service-worker.js", "type": "module"}
+}
+
